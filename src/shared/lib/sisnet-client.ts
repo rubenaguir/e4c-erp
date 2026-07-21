@@ -43,15 +43,74 @@ export class SisnetError extends Error {
   }
 }
 
-/** Token de sesión (JWT) — provisto por el módulo de auth. Ver ADR-007. */
-let sessionToken: string | null = null
+/** Ver ADR-011: localStorage es la fuente de verdad, un solo string (JWT crudo). */
+const SESSION_STORAGE_KEY = 'sv3_session'
+
+function readStoredSession(): string | null {
+  try {
+    return localStorage.getItem(SESSION_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+/** Token de sesión (JWT) — provisto por el módulo de auth. Ver ADR-007, ADR-011. */
+let sessionToken: string | null = readStoredSession()
+
+type SessionListener = () => void
+const sessionListeners = new Set<SessionListener>()
 
 export function setSisnetSession(token: string | null) {
   sessionToken = token
+  try {
+    if (token) localStorage.setItem(SESSION_STORAGE_KEY, token)
+    else localStorage.removeItem(SESSION_STORAGE_KEY)
+  } catch {
+    // localStorage no disponible (modo privado, etc.) — degradar a solo memoria
+  }
+  sessionListeners.forEach((listener) => listener())
 }
 
 export function getSisnetSession() {
   return sessionToken
+}
+
+/** Para useSyncExternalStore — ver useSisnetSession() en features/auth/hooks. */
+export function subscribeSisnetSession(listener: SessionListener): () => void {
+  sessionListeners.add(listener)
+  return () => sessionListeners.delete(listener)
+}
+
+interface SisnetTokenPayload {
+  exp?: number
+  [key: string]: unknown
+}
+
+/** Decodifica el payload de un JWT sin verificar firma — solo para leer
+ *  `exp` y calcular el timing de refresh; la validación real la hace el
+ *  backend en cada request. */
+function decodeSisnetToken(token: string): SisnetTokenPayload | null {
+  try {
+    const payloadSegment = token.split('.')[1]
+    if (!payloadSegment) return null
+    const base64 = payloadSegment.replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(base64)) as SisnetTokenPayload
+  } catch {
+    return null
+  }
+}
+
+export function getSisnetTokenRemainingMs(token: string): number | null {
+  const payload = decodeSisnetToken(token)
+  if (!payload || typeof payload.exp !== 'number') return null
+  return payload.exp * 1000 - Date.now()
+}
+
+/** 80% del tiempo restante (ADR-011) — momento en que debe dispararse TokenRefresh. */
+export function getSisnetTokenRefreshDelayMs(token: string): number | null {
+  const remaining = getSisnetTokenRemainingMs(token)
+  if (remaining === null) return null
+  return Math.max(0, remaining * 0.8)
 }
 
 /** Callback opcional para reaccionar a un forceLogout del backend. */

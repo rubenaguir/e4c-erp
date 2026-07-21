@@ -243,3 +243,64 @@ Detalle completo en `specs/README.md`, sección "Organización por módulo".
 - Migración de los 8 archivos ya existentes (`entities/factura.md`,
   `api-contracts/facturas.md`, y los 6 de `features/`) a sus nuevas rutas,
   con todas las referencias cruzadas actualizadas.
+
+## ADR-011 — Persistencia de sesión en localStorage y refresh proactivo
+
+**Contexto.** `specs/features/auth/login.md` dejó abierta la pregunta de
+persistencia del JWT (localStorage vs. memoria) hasta poder revisar cómo la
+resolvió `e4c-factura` (proyecto hermano, mismo backend) en producción.
+`e4c-factura` (`src/context/AuthContext.tsx`) ya usa `localStorage` con la
+key `"sv3_session"` guardando el JWT crudo, con un timer de refresh
+proactivo al 80% del tiempo restante del token y una revalidación al volver
+a foco (`visibilitychange`) si quedan menos de 10 minutos — validado en
+producción contra este mismo backend. Se confirmó contra `SisnetV3Desarrollo`
+local (usuario de prueba `demo`, ver `specs/api-contracts/auth.md`) que:
+`TokenRefresh` delega literalmente en `ValidateSession`
+(`modules/seguri/acceso/acceso_jwt.php:404-408`, shape idéntico); que
+`remember_me=true` en `Login` persiste ~30 días a través de refreshes
+sucesivos porque la duración (`expiresIn`) viaja embebida en el propio JWT y
+se reutiliza en cada renovación (`Sesion.class.php:118-158`,
+`interfase_jwt.php:144-148`); y que `JWT_RENEW_THRESHOLD` (1800s, umbral fijo
+interno del backend para decidir si renovar cuando se le pregunta) y
+`TokenNeedsRenewal` existen y son independientes del 80% que decide este
+frontend para llamar proactivamente.
+
+**Decisión.**
+- Persistencia: `localStorage`, key `"sv3_session"` — un solo string, el
+  JWT crudo (sin envolver en JSON). `sisnet-client.ts` lee `localStorage` al
+  inicializar el módulo (no solo al escribir), así que recargar la página no
+  cierra la sesión.
+- `remember_me` se expone como checkbox en el login.
+- Refresh proactivo: al 80% del tiempo restante del token (no del TTL total
+  desde emisión — se recalcula en cada renovación, misma semántica que
+  `e4c-factura`) se llama `TokenRefresh`; adicionalmente, al volver la
+  pestaña a foco (`visibilitychange`) se llama `TokenRefresh` si quedan
+  menos de 10 minutos de vida.
+- Reactividad sin `AuthContext` nuevo (ADR-004 ya lo descarta): `sisnet-client.ts`
+  expone un store observable mínimo (`Set` de listeners notificados en cada
+  `setSisnetSession`), consumido vía `useSyncExternalStore` desde un hook
+  `useSisnetSession()` en `src/features/auth/hooks/`. No es Context — no hay
+  `createContext`/`<Provider>` — es la API nativa de React para stores
+  externos, y evita introducir el punto de estado duplicado que ADR-004
+  quería evitar.
+- Sin capa biométrica — existe en `e4c-factura`
+  (`src/lib/biometricStorage.ts`) pero no se trae a este piloto.
+- **Cuidado con `remember_me` en el body del request**: confirmado en vivo
+  que `GetFromRequest("remember_me", false)` del backend evalúa el valor
+  como string, y PHP considera truthy cualquier string no vacío distinto de
+  `"0"` — incluyendo literalmente el string `"false"`. Enviar
+  `remember_me=false` (serializado tal cual por `appendParam` de
+  `sisnet-client.ts`, que hace `String(value)`) produce, contra lo
+  esperado, un token de 30 días. `src/features/auth/api/login.ts` debe
+  omitir el parámetro por completo (o enviar `"0"`) cuando el usuario no
+  marcó "recordarme", nunca enviar el booleano `false` tal cual.
+
+**Consecuencias.**
+- Mismo patrón de persistencia que `e4c-factura` — un desarrollador que
+  conoce ese proyecto reconoce la convención aquí (misma key incluso).
+- Riesgo aceptado de XSS vía `localStorage` — ya es el riesgo que
+  `e4c-factura` acepta en producción contra el mismo backend, no es una
+  decisión nueva de este proyecto.
+- El bug de truthiness de `remember_me` queda documentado aquí y en
+  `specs/api-contracts/auth.md` para que no se reintroduzca por accidente
+  en una feature futura que también llame `Login`.

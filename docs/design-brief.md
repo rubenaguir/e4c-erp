@@ -1,14 +1,9 @@
 # Design brief — e4c-erp
 
-> **PENDIENTE (TODO):** este documento es un placeholder. Los tokens reales
-> de diseño ("Claude Design") ya existen y están en uso en
-> `C:\d\Empresa4Cero\apps\e4c-factura` (proyecto hermano, misma familia de
-> producto — POS/facturación rápida). Antes de diseñar cualquier pantalla de
-> `e4c-erp` hace falta que el usuario comparta el proyecto/tokens de Claude
-> Design de `e4c-factura` para reutilizarlos aquí (ver ADR-002 en
-> `docs/decisiones.md`). Mientras tanto, `src/index.css` usa una paleta
-> neutra placeholder (shadcn "zinc" por defecto), explícitamente marcada
-> como temporal.
+> Los tokens de diseño ("Claude Design") ya están portados a
+> `src/index.css` desde `e4c-factura` (proyecto hermano, misma familia de
+> producto — ver ADR-002 en `docs/decisiones.md`). Ya no aplica la paleta
+> placeholder mencionada más abajo.
 
 ## Qué es e4c-erp
 
@@ -23,10 +18,11 @@ sistema, elegida deliberadamente para fijar el estándar de las pantallas
 tipo "documento" antes de generalizarlo a pedidos, notas de crédito,
 compras, etc.
 
-## Dirección visual (a definir con los tokens reales)
+## Dirección visual
 
-Hasta no tener los tokens de Claude Design de `e4c-factura`, aplican estos
-lineamientos generales, derivados del propio dominio del sistema:
+Tokens de color/radio ya definidos en `src/index.css` (portados de
+`e4c-factura`, ver ADR-002). Lineamientos generales derivados del propio
+dominio del sistema:
 
 - **Personalidad**: profesional, confiable, orientado a productividad — el
   usuario típico (personal administrativo/ventas de una empresa mexicana)
@@ -83,7 +79,6 @@ retrabajo.
 
 ## Cómo continuar este brief
 
-1. Obtener del usuario el proyecto/tokens de Claude Design de `e4c-factura`.
-2. Actualizar `src/index.css` con los tokens reales (reemplazando la paleta
-   placeholder).
+1. ~~Obtener del usuario el proyecto/tokens de Claude Design de `e4c-factura`.~~ Hecho.
+2. ~~Actualizar `src/index.css` con los tokens reales.~~ Hecho.
 3. Diseñar primero las pantallas ★ de la lista de arriba.

@@ -71,19 +71,56 @@ Then se cierra la sesión de inmediato en el cliente (limpiar JWT guardado,
       feature debe manejar forceLogout por su cuenta
 ```
 
+### Caso: refresh proactivo de sesión
+
+```
+Given una sesión activa con un JWT válido
+When queda el 20% (o menos) del tiempo de vida del token
+Then el cliente llama TokenRefresh en segundo plano y reemplaza el JWT
+     guardado con el que regresa la respuesta (record completo, mismo
+     shape que Login) — sin interacción del usuario, sin recargar la app
+
+Given una sesión activa cuya pestaña estuvo en background
+When la pestaña vuelve a foco (visibilitychange) y quedan menos de 10
+     minutos de vida en el JWT guardado
+Then el cliente llama TokenRefresh de inmediato, sin esperar al ciclo
+     normal del 80%
+```
+
+### Caso: remember_me
+
+```
+Given el usuario marca el checkbox "recordarme" al capturar credenciales
+When se llama Login con remember_me=true
+Then el JWT resultante tiene vigencia de ~30 días en vez del default de la
+     sesión (confirmado contra el backend local, ver
+     specs/api-contracts/auth.md)
+
+Given el usuario NO marca "recordarme"
+When se llama Login
+Then el parámetro remember_me se omite del request (o se envía "0") — NUNCA
+     se envía el booleano false serializado como string, porque PHP
+     interpreta el string "false" como verdadero (ver ADR-011 en
+     docs/decisiones.md) — enviarlo tal cual produciría, por error, una
+     sesión de 30 días
+```
+
 ## Referencia a contrato de API
 
-`specs/api-contracts/auth.md` — `SearchSucursalesUsuario`, `Login`.
+`specs/api-contracts/auth.md` — `SearchSucursalesUsuario`, `Login`,
+`TokenRefresh`/`ValidateSession`.
 
-## Preguntas abiertas (no resolver por defecto — confirmar antes de implementar)
+## Preguntas cerradas (confirmadas contra SisnetV3Desarrollo local, usuario de prueba `demo`)
 
-- **Persistencia del JWT**: ¿localStorage (sobrevive recargas, pero
-  expuesto a XSS) o solo en memoria (más seguro, pero pierde la sesión al
-  recargar la pestaña)? `e4c-factura` ya resolvió esto para su propio caso
-  — revisar su implementación real (no solo sus specs) antes de decidir
-  aquí, en vez de elegir a ciegas.
-- **`usuario_id` de `SearchSucursalesUsuario`**: confirmar si es el mismo
-  valor que el campo `usuario` que el usuario captura, o si requiere una
-  resolución previa (ver nota en `specs/api-contracts/auth.md`).
-- **`remember_me`**: ¿el piloto expone un checkbox "recordarme" en el login,
-  o se omite en esta primera versión? No decidido.
+- **Persistencia del JWT**: `localStorage`, key `"sv3_session"`, JWT crudo
+  sin envolver. Ver ADR-011 en `docs/decisiones.md` — mismo patrón que
+  `e4c-factura` ya valida en producción contra este backend.
+- **`usuario_id` de `SearchSucursalesUsuario`**: es el mismo valor que el
+  campo `usuario` capturado en login, sin resolución previa. Confirmado por
+  código (`Login` pasa el `usuario` crudo a `ValidateUser`, que carga
+  `sistema_usuarios WHERE usuario_id = $1` con ese mismo string —
+  `php/classes/Sesion.class.php:437`, `php/classes/Usuario.class.php:10-38`)
+  y por captura real: `SearchSucursalesUsuario` con `usuario_id=demo`
+  devolvió las combinaciones correctas del usuario `demo`.
+- **`remember_me`**: sí se expone como checkbox en el login. Ver caso
+  Given/When/Then arriba y la advertencia de truthiness en ADR-011.
