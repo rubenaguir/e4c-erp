@@ -31,16 +31,16 @@ curso" (vía `cancelacion_estatus`) y **no** deshabilitar el botón "Cancelar"
 tras la primera llamada — el usuario necesita poder volver a presionarlo
 más tarde para completar la segunda fase.
 
-**Hallazgo nuevo (prueba real de esta sesión)**: antes del flujo de 2 fases
+**Hallazgo (prueba real de sesión anterior)**: antes del flujo de 2 fases
 de arriba, `Cancel33` valida un gate de autorización jerárquica
 (`ventas_facturas_autoriza_*`, configurado a nivel `empresa_id`) que puede
 rechazar la llamada por completo con `Code: 4` ("La factura tiene
 autorizaciones pendientes: ...") sin llegar siquiera a la solicitud SAT —
-ver `specs/api-contracts/ventas/facturas.md`, sección `Cancel33`. Este gate
-no está cubierto por ningún caso Given/When/Then de abajo ni por
-`CLAUDE.md` — falta decisión del dueño del producto sobre si el piloto lo
-maneja (mostrar el mensaje de error tal cual, sin UI dedicada) o si se
-considera fuera de alcance del MVP.
+ver `specs/api-contracts/ventas/facturas.md`, sección `Cancel33`.
+**Decisión de alcance**: el módulo de autorizaciones jerárquicas queda
+fuera del piloto (ver `CLAUDE.md`, "Alcance del MVP") — el piloto no
+construye pantalla de aprobación propia, solo muestra el error del backend
+tal cual (ver caso Given/When/Then correspondiente abajo).
 
 ## Casos Given/When/Then
 
@@ -91,6 +91,20 @@ Then se llama Cancel33(serie, folio, motivo[, folio_sustitucion]) otra vez
   And la respuesta trae record con estatus "C"
   And se revierte el efecto en cuentas por cobrar
   And record parchea la cache de la lista (feature 002) — sin refetch
+```
+
+### Caso: cancelar factura timbrada — con autorizaciones pendientes
+
+```
+Given una factura con estatus "R" con autorizaciones pendientes
+     (ventas_facturas_autoriza_*, ver hallazgo arriba)
+When el usuario presiona "Cancelar"
+Then Cancel33 responde Code 4 con el mensaje del backend tal cual
+     ("La factura tiene autorizaciones pendientes: ...")
+  And se muestra ese mensaje vía el manejo de SisnetError ya existente
+      (sin pantalla ni flujo de aprobación propio en este piloto)
+  And el usuario resuelve la autorización desde la UI legacy de
+      Sisnet V3, fuera de este repo — el estatus de la factura no cambia
 ```
 
 ### Caso: cancelar factura timbrada — motivo "01" (sustitución)

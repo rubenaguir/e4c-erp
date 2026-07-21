@@ -278,10 +278,6 @@ parámetros exactos en esta ronda** — pendiente antes de implementar.
   gate de autorización descubierto en esta ronda (ver sección `Cancel33`
   arriba); requiere primero decidir cómo se resuelve esa autorización en el
   tenant de prueba, o probar contra un tenant sin esa regla configurada.
-- Decidir si el gate de autorización de cancelación
-  (`ventas_facturas_autoriza_*`) entra en el alcance del piloto o queda
-  fuera — hoy no está mencionado en `CLAUDE.md` ni en ningún spec de
-  `facturas_venta_33`.
 - ~~Comportamiento de `LoadPresetClientData` sin historial~~ — confirmado
   con prueba real: regresa `[]` (ver sección `LoadPresetClientData`
   arriba).

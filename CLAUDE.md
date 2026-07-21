@@ -63,6 +63,9 @@ FUERA (por ahora):
   piloto solo cubre el patrón "documento". Los otros dos patrones de pantalla
   (catálogo, reporte) se especifican después, una vez validado este.
 - CRM (tiene su propio frontend, `crm2`).
+- Módulo de autorizaciones jerárquicas para cancelación
+  (`ventas_facturas_autoriza_*`) — el piloto solo muestra el error del
+  backend si aplica, no construye pantalla de aprobación.
 
 ## Patrón List-Master-Detail (regla central del producto)
 
