@@ -25,7 +25,7 @@
   /* Layout del shell de navegación (ADR-015) — mismo valor en light/dark */
   --topbar-h: 56px;
   --sidebar-w: 240px;
-  --sidebar-w-collapsed: 64px;
+  --sidebar-w-collapsed: 60px;
 }
 
 .dark {
