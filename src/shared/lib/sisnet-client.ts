@@ -14,6 +14,12 @@ if (!SISNET_BASE_URL) {
   )
 }
 
+/** Debug-only (Xdebug/breakpoints en el backend PHP local) — nunca 'true' en
+ *  un build real. Comparación estricta contra el string 'true': las env vars
+ *  de Vite siempre llegan como string, y cualquier otro valor (incluido
+ *  ausente) debe evaluar a false. Ver mismo patrón en e4c-factura. */
+const XDEBUG_ENABLED = import.meta.env.VITE_XDEBUG_ENABLED === 'true'
+
 /** Shape real de error de interfase_jwt.php (NO inventar uno "más limpio"). */
 export interface SisnetErrorResponse {
   success: false
@@ -163,7 +169,12 @@ export async function sisnetRequest<T>(options: SisnetRequestOptions): Promise<T
   const { opReq, params = {}, responseType = 'json' } = options
   const body = buildFormBody(opReq, params)
 
-  const response = await fetch(SISNET_BASE_URL, {
+  let url = SISNET_BASE_URL
+  if (XDEBUG_ENABLED) {
+    url += '?XDEBUG_SESSION_START=XDEBUG_ECLIPSE'
+  }
+
+  const response = await fetch(url, {
     method: 'POST',
     mode: 'cors',
     credentials: 'include',
