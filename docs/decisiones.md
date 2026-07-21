@@ -304,3 +304,20 @@ frontend para llamar proactivamente.
 - El bug de truthiness de `remember_me` queda documentado aquí y en
   `specs/api-contracts/auth.md` para que no se reintroduzca por accidente
   en una feature futura que también llame `Login`.
+
+## ADR-012 — Parcheo de cache: merge parcial para campos derivados de otras tablas
+
+**Contexto.** `specs/entities/ventas/factura.md` confirma que `Search` incluye campos derivados de joins con otras tablas (`saldo`/`num_cta_cobrar` de cuentas por cobrar, relación con `pedido`, etc.) que `Load`/`AddPrefactura`/`UpdatePrefactura`/`Stamp`/`Cancel(33)` no regresan, porque esas mutaciones solo tocan la tabla propia del documento. El registro de `Search` **no es una imagen exacta** de la fila de la tabla del documento — trae contexto adicional de referencia. El patrón de parcheo documentado en `specs/ui-screens/patron-documento-list-master-detail.md` (reemplazo total `records[index] = data.record`) pierde esos campos derivados en cada mutación. El usuario confirma que este mismo patrón (Search más ancho que Load por campos de joins) se repetirá en otros módulos tipo documento, no es exclusivo de `facturas_venta_33`.
+
+**Decisión.** El parcheo de cache tras una mutación usa **merge parcial genérico**, no reemplazo total ni una lista de campos hardcodeada:
+
+```ts
+records[index] = { ...oldRecord, ...data.record }
+```
+
+Cualquier campo presente en el registro viejo de `Search` que `data.record` no traiga se conserva tal cual (aunque quede desactualizado hasta el próximo `Search` completo); cualquier campo que sí venga en `data.record` sobreescribe al viejo. Se implementa como una utilidad compartida (no específica de `factura`) — ej. `mergeDocumentRecord(oldRecord, newRecord)` en `src/shared/lib/` — para que cada módulo tipo documento la reuse en vez de reimplementar su propia regla de parcheo.
+
+**Consecuencias.**
+- Los campos derivados (`saldo`, etc.) pueden quedar **desactualizados** tras una mutación que indirectamente los afecte (ej. timbrar cambia el saldo por cobrar en otra tabla) hasta el próximo refresh manual de la lista — es la misma aceptación de "optimismo acotado" que ya justificó ADR-003, extendida explícitamente a campos de join.
+- Asume que los campos compartidos entre `Search` y `Load` tienen el mismo nombre/tipo en ambos — si un módulo futuro rompe esa asunción (mismo nombre, significado distinto), no lo resuelve este ADR; se decide caso por caso al implementar ese módulo.
+- `specs/ui-screens/patron-documento-list-master-detail.md` se actualiza para reflejar `{...oldRecord, ...data.record}` en vez del reemplazo total documentado hoy.

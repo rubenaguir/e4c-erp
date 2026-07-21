@@ -81,9 +81,11 @@ onSuccess: (data, variables) => {
       // requiera), incrementando totalCount.
       return { totalCount: old.totalCount + 1, records: [data.record, ...old.records] }
     }
-    // Edición/timbrado/cancelación: se reemplaza en su posición.
+    // Edición/timbrado/cancelación: merge parcial en su posición (ADR-012)
+    // — conserva campos derivados de joins (ej. saldo, num_cta_cobrar) que
+    // Search trae pero data.record no.
     const records = [...old.records]
-    records[index] = data.record
+    records[index] = { ...records[index], ...data.record }
     return { ...old, records }
   })
 }
@@ -101,14 +103,14 @@ onSuccess: (data, variables) => {
   iterar, en vez de asumir una sola query key activa.
 - El shape exacto de `records[i]` (angosto, de `Search`) vs. `data.record`
   (completo, de `Load`/mutación) **difieren** — ver
-  `specs/entities/ventas/factura.md`. El parcheo de arriba asume que es aceptable
-  que un registro de la lista tenga temporalmente más campos de los que
-  `Search` normalmente devuelve; si el componente de fila del grid depende
-  de un campo que `data.record` no trae pero `Search` sí (ej. `saldo`,
-  `num_cta_cobrar`, `estatus_cxc` — ver `specs/entities/ventas/factura.md`), **este
-  patrón se rompe** y hay que resolverlo explícitamente (ej. conservando los
-  campos del registro viejo que no vengan en `data.record`, con merge en
-  vez de reemplazo total) antes de dar la feature por completa.
+  `specs/entities/ventas/factura.md`. Resuelto por ADR-012 (merge parcial
+  genérico): el parcheo de arriba conserva los campos derivados de joins
+  (ej. `saldo`, `num_cta_cobrar`, `estatus_cxc`) que trae `Search` pero no
+  `data.record`, en vez de perderlos con un reemplazo total.
+
+Se recomienda extraer esta lógica a `src/shared/lib/mergeDocumentRecord.ts`
+cuando se implemente la primera mutación (Fase 3) — no específico de
+factura, reusable por cualquier módulo tipo documento.
 
 ### Navegación List ↔ Master
 
