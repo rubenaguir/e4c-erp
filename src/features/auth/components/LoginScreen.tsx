@@ -2,8 +2,12 @@ import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Eye, EyeOff } from 'lucide-react'
 
+import loginBackground from '@/assets/login-bg-h.jpg'
+import logoIcon from '@/assets/logo-icon.png'
 import { Button } from '@/shared/components/ui/button'
+import { Card, CardContent, CardHeader } from '@/shared/components/ui/card'
 import { Checkbox } from '@/shared/components/ui/checkbox'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
@@ -26,6 +30,32 @@ type PendingCredentials = {
 }
 
 /**
+ * Imagen completa del handoff oficial (login-bg-h.png origen), decisión
+ * consciente de mantener el mockup visible pese a mostrar la marca
+ * "FacturaGlobal" de un producto hermano — ver docs/design-brief.md.
+ * Overlay y tratamiento del Card en LoginBackdrop/Card más abajo.
+ */
+function LoginBackdrop() {
+  return (
+    <>
+      <img
+        src={loginBackground}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, color-mix(in srgb, var(--foreground) 55%, transparent) 0%, color-mix(in srgb, var(--foreground) 75%, transparent) 100%)',
+        }}
+      />
+    </>
+  )
+}
+
+/**
  * Pantalla de login — flujo de dos pasos (specs/features/auth/login.md):
  * SearchSucursalesUsuario primero; si hay una sola combinación empresa/
  * sucursal/instancia se omite el selector y se llama Login directo, si hay
@@ -34,6 +64,7 @@ type PendingCredentials = {
 export function LoginScreen() {
   const [pending, setPending] = useState<PendingCredentials | null>(null)
   const [sucursales, setSucursales] = useState<SucursalUsuario[] | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const searchSucursales = useSearchSucursalesUsuario()
   const login = useLogin()
@@ -80,82 +111,107 @@ export function LoginScreen() {
 
   if (sucursales) {
     return (
-      <main className="flex min-h-svh flex-col items-center justify-center gap-4 p-8">
-        <div className="w-full max-w-sm space-y-4">
-          <h1 className="text-xl font-semibold text-foreground">Selecciona una sucursal</h1>
-          {error && <p className="text-sm text-destructive">{error.message}</p>}
-          <div className="flex flex-col gap-2">
-            {sucursales.map((sucursal) => (
-              <Button
-                key={sucursal.empresa_sucursal_id}
-                type="button"
-                variant="outline"
-                disabled={isLoading}
-                onClick={() => onSelectSucursal(sucursal.empresa_sucursal_id)}
-              >
-                {sucursal.descripcion}
-              </Button>
-            ))}
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              setSucursales(null)
-              setPending(null)
-            }}
-          >
-            Volver
-          </Button>
-        </div>
+      <main className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden p-4">
+        <LoginBackdrop />
+        <Card className="relative z-10 w-full max-w-100 bg-card/97 py-7">
+          <CardContent className="space-y-4 px-8">
+            <h1 className="text-xl font-semibold text-foreground">Selecciona una sucursal</h1>
+            {error && <p className="text-sm text-destructive">{error.message}</p>}
+            <div className="flex flex-col gap-2">
+              {sucursales.map((sucursal) => (
+                <Button
+                  key={sucursal.empresa_sucursal_id}
+                  type="button"
+                  variant="outline"
+                  disabled={isLoading}
+                  onClick={() => onSelectSucursal(sucursal.empresa_sucursal_id)}
+                >
+                  {sucursal.descripcion}
+                </Button>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setSucursales(null)
+                setPending(null)
+              }}
+            >
+              Volver
+            </Button>
+          </CardContent>
+        </Card>
       </main>
     )
   }
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-4 p-8">
-      <form
-        className="w-full max-w-sm space-y-4"
-        onSubmit={form.handleSubmit(onSubmitCredentials)}
-      >
-        <h1 className="text-xl font-semibold text-foreground">e4c-erp</h1>
+    <main className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden p-4">
+      <LoginBackdrop />
+      <Card className="relative z-10 w-full max-w-100 bg-card/97 py-7">
+        <CardHeader className="px-8">
+          <div className="flex items-center gap-2.5">
+            <img src={logoIcon} alt="e4c-erp" width={32} height={32} />
+            <span className="text-base font-medium text-foreground">e4c-erp</span>
+          </div>
+          <p className="text-[13px] text-muted-foreground">Ingresa tus credenciales</p>
+        </CardHeader>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="usuario">Usuario</Label>
-          <Input id="usuario" autoComplete="username" {...form.register('usuario')} />
-          {form.formState.errors.usuario && (
-            <p className="text-sm text-destructive">{form.formState.errors.usuario.message}</p>
-          )}
-        </div>
+        <CardContent className="px-8">
+          <form className="space-y-4" onSubmit={form.handleSubmit(onSubmitCredentials)}>
+            <div className="space-y-1.5">
+              <Label htmlFor="usuario">Usuario</Label>
+              <Input id="usuario" autoComplete="username" {...form.register('usuario')} />
+              {form.formState.errors.usuario && (
+                <p className="text-sm text-destructive">{form.formState.errors.usuario.message}</p>
+              )}
+            </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="contrasena">Contraseña</Label>
-          <Input
-            id="contrasena"
-            type="password"
-            autoComplete="current-password"
-            {...form.register('contrasena')}
-          />
-          {form.formState.errors.contrasena && (
-            <p className="text-sm text-destructive">{form.formState.errors.contrasena.message}</p>
-          )}
-        </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="contrasena">Contraseña</Label>
+              <div className="relative">
+                <Input
+                  id="contrasena"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  className="pr-10"
+                  {...form.register('contrasena')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+              {form.formState.errors.contrasena && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.contrasena.message}
+                </p>
+              )}
+            </div>
 
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="rememberMe"
-            checked={rememberMe}
-            onCheckedChange={(checked) => form.setValue('rememberMe', checked === true)}
-          />
-          <Label htmlFor="rememberMe">Recordarme</Label>
-        </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="rememberMe"
+                checked={rememberMe}
+                onCheckedChange={(checked) => form.setValue('rememberMe', checked === true)}
+              />
+              <Label htmlFor="rememberMe">Recordarme</Label>
+            </div>
 
-        {error && <p className="text-sm text-destructive">{error.message}</p>}
+            {error && <p className="text-sm text-destructive">{error.message}</p>}
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Ingresando…' : 'Ingresar'}
-        </Button>
-      </form>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Ingresando…' : 'Ingresar'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </main>
   )
 }

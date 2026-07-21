@@ -38,21 +38,32 @@ dominio del sistema:
   caso de uso móvil puro, tipo POS/facturación rápida, ya lo cubren
   `e4c-pos`/`e4c-factura` por separado).
 
+Login con imagen de fondo (heredada de e4c-factura) + overlay oscuro-azulado
+de marca, card semi-transparente enmarcado (ancho máximo ~380-400px) —
+refuerza identidad de marca en el punto de entrada sin comprometer
+legibilidad. Pantallas internas (listado/detalle de facturas) NO heredan
+este tratamiento — mantienen fondo neutro, ya que ahí prioriza densidad de
+datos sobre identidad de marca.
+
+Imagen completa del handoff oficial (login-bg-h.png origen), decisión
+consciente de mantener el mockup visible pese a mostrar la marca
+"FacturaGlobal" de un producto hermano.
+
 ## Sistema de estados de documento (compartido entre pantallas tipo "documento")
 
 Reutiliza los estatus ya definidos por Sisnet V3 (no se inventan nuevos):
 
-| Estatus (código Sisnet V3) | Significado |
-|---|---|
-| `R` | Registrado |
-| `P` | Prefactura / borrador sin timbrar (solo aplica a documentos con CFDI) |
-| `T` | Timbrado |
-| `A` | Autorizado |
-| `C` | Cancelado |
+| Estatus (código Sisnet V3) | Significado | Color (fuente: Badge.tsx del handoff) |
+|---|---|---|
+| `R` | Registrado | Color pendiente de definir — no está en el Badge.tsx del handoff actual, no se inventa aquí. |
+| `P` | Prefactura / borrador sin timbrar (solo aplica a documentos con CFDI) | Fondo `var(--muted)`, texto `var(--muted-foreground)` |
+| `T` | Timbrado | Fondo `#16A34A` (verde), texto blanco |
+| `A` | Autorizado | Color pendiente de definir — no está en el Badge.tsx del handoff actual, no se inventa aquí. |
+| `C` | Cancelado | Fondo `var(--destructive)`, texto blanco |
 
-Los colores/tokens para cada estatus quedan pendientes de los tokens reales
-de Claude Design — no se fijan aquí de forma provisional para evitar
-retrabajo.
+El design system trae además un variant "pendiente" (ámbar) en `Badge.tsx`
+sin mapeo confirmado a ninguno de los estatus R/P/T/A/C de arriba — podría
+aplicar a otro módulo/pantalla futura; no se usa en el piloto por ahora.
 
 ## Pantallas del piloto (a diseñar primero)
 

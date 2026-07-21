@@ -60,16 +60,28 @@ proyecto, tooling) — ver "Reglas de implementación" en `CLAUDE.md`.
       postcondición.
 - [x] `specs/ui-screens/patron-documento-list-master-detail.md`.
 
-## Fase 2 — Implementación: `auth`
+## Fase 2 — Implementación: `auth` ✅ completo
 
-- [ ] Resolver la pregunta abierta de persistencia del JWT (localStorage vs.
+- [x] Resolver la pregunta abierta de persistencia del JWT (localStorage vs.
       memoria) — capturar el flujo real de selección
       empresa/sucursal/instancia contra el backend local antes de fijarlo en
       la spec (dado `STAND_ALONE = false`, ver `docs/arquitectura.md`).
-- [ ] `src/features/auth/` — pantalla de login, hook de sesión, integración
+- [x] `src/features/auth/` — pantalla de login, hook de sesión, integración
       con `sisnet-client.ts` (`setSisnetSession`, `setSisnetForceLogoutHandler`).
-- [ ] Verificación end-to-end: login real contra WAMP local obtiene un JWT
+- [x] Verificación end-to-end: login real contra WAMP local obtiene un JWT
       válido; una llamada subsecuente autenticada regresa datos.
+
+### Hallazgos no anticipados
+
+- Primitivo Card agregado (shadcn, estilo radix-mira).
+- Login alineado al design system real de Empresa4Cero: ícono de marca
+  (`logo-icon.png`), imagen de fondo con overlay tintado (imagen completa
+  del handoff oficial — decisión consciente de mantener visible el mockup
+  de "FacturaGlobal", ver `docs/design-brief.md`), toggle de mostrar/ocultar
+  contraseña.
+- Tabla de colores de estatus de documento (`design-brief.md`) completada
+  parcialmente: P/T/C confirmados contra `Badge.tsx` del handoff oficial; R
+  y A quedan explícitamente pendientes (sin color inventado).
 
 ## Fase 3 — Implementación: núcleo `facturas_venta_33`
 
@@ -95,11 +107,7 @@ proyecto, tooling) — ver "Reglas de implementación" en `CLAUDE.md`.
 
 ## Decisiones pendientes que bloquean fases futuras
 
-| Pendiente | Bloquea | Estado |
-|---|---|---|
-| Tokens reales del design system ("Claude Design" de `e4c-factura`) | `docs/design-brief.md`, componentes shadcn con paleta final | Abierto — pendiente que el usuario comparta el proyecto/tokens |
-| Persistencia del JWT en cliente | Fase 2 | Abierto — ver `specs/features/auth/login.md` |
-| Forma exacta de selección empresa/sucursal/instancia en login | Fase 2 | Abierto — `e4c-factura` ya trae `empresa_id`/`sucursal_id` fijos en sus payloads; confirmar si ese atajo aplica aquí o si el login debe resolverlo dinámicamente |
+Sin pendientes abiertos que bloqueen la Fase 3.
 
 ## Continuidad entre sesiones
 
