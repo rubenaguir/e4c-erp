@@ -28,7 +28,7 @@ Todos los campos numéricos llegan como **string** — ver
 | `receptor_rfc` / `receptor_nombre` | string | snapshot del cliente al momento de facturar |
 | `fecha` | string `dd/mm/aaaa hh:mm[:ss]` | no ISO 8601 — parsear con cuidado |
 | `fecha_vencimiento` | string `dd/mm/aaaa` | |
-| `estatus` | string enum | `R` registrado, `P` prefactura, `T` timbrado, `A` autorizado, `C` cancelado — ver `docs/design-brief.md` |
+| `estatus` | string enum | `R` registrado, `P` prefactura, `C` cancelado — `T`/`A` son vocabulario general de Sisnet V3 (ver `docs/design-brief.md`) pero no aplican a esta entidad: `facturas_venta_33` solo usa `P`/`R`/`C` (ver ADR-016 en `docs/decisiones.md`) |
 | `estatus_sat` | string \| null | `null` en `Load`/`Search` hasta que se consulta el PAC — ver nota de carga diferida abajo. Valores observados por auditoría de código: `"Vigente"`, `"Cancelado"`, `"No Encontrado"` — no es el mismo enum que `estatus` |
 | `confirmacion_pac` | string \| null | presente en `Load` (confirmado con captura real, folio `A-68348`). **Ojo**: `facturas_venta.ini.js:822` define en el formulario un campo de nombre `confirmacion_sat` (label "Confirma. SAT:") que no corresponde a ningún campo real de `Load` — el nombre real del campo en el backend es `confirmacion_pac`. Posible desalineación de nombre en la UI Ext JS original; no asumir que `confirmacion_sat` existe como campo del backend sin verificarlo de nuevo si se retoma este campo |
 | `cancelacion_estatus` / `cancelacion_motivo` / `cancelacion_motivo_descr` / `cancelacion_cfdi_reemplaza` / `cancelacion_acuse` | string \| null | solo relevantes cuando `estatus = "C"` o hay una solicitud de cancelación en curso |
@@ -63,9 +63,11 @@ Todos los campos numéricos llegan como **string** — ver
 ## Invariantes de negocio observadas
 
 - `estatus = "P"` (prefactura) implica `uuid = null`. Solo se puede editar
-  con `UpdatePrefactura` mientras esté en este estatus; una vez timbrada
-  (`Stamp`), pasa a tener `uuid` y a comportarse como documento fiscal
-  inmutable salvo cancelación.
+  con `UpdatePrefactura` mientras esté en este estatus. `Stamp` exitoso deja
+  el documento en `estatus = "R"` (no `"T"` — ese código no aplica a este
+  módulo), con `uuid` ya asignado, y a partir de ahí es inmutable salvo su
+  propio cambio de estatus a `"C"` vía cancelación — ver ADR-016 en
+  `docs/decisiones.md`.
 - `estatus = "C"` es terminal salvo el caso especial de pre-factura
   cancelada (ver `specs/api-contracts/ventas/facturas.md`, distinción
   `Cancel`/`Cancel33`).

@@ -14,19 +14,17 @@ timbrado ante el SAT. Acción irreversible salvo cancelación (feature 006).
 Sesión válida. La factura tiene `estatus = "P"`, `uuid = null`, y al menos
 un concepto capturado.
 
-## ⚠ Bloqueante antes de implementar
+## Estado confirmado (prueba real, WAMP local, esta sesión)
 
-`specs/api-contracts/ventas/facturas.md` marca explícitamente que el shape de
-respuesta observado de `Stamp` en la única captura disponible (
-`e4c-factura/docs/spec/09-sv3-contracts.md:943-1013`) **no confirma** que
-el documento termine con `uuid` asignado y `estatus` distinto de `"P"` — la
-captura está truncada y el `record` de ejemplo todavía muestra
-`estatus: "P"`, `uuid: null`. Antes de escribir el hook `useStampFactura` u
-otra implementación de esta feature, **capturar un `Stamp` real contra el
-backend local** y confirmar cuál es el estado final del documento
-(¿síncrono? ¿asíncrono, requiere `LoadEstatusSAT` después?).
+`Stamp` es **síncrono**: la misma respuesta ya trae el documento con
+`estatus = "R"` y `uuid` asignado — no hace falta polling ni
+`LoadEstatusSAT` para saber si el timbrado tuvo éxito. Confirmado con una
+prueba real contra el backend local (`specs/api-contracts/ventas/facturas.md`,
+sección `Stamp`) y resuelto conceptualmente por ADR-016
+(`docs/decisiones.md`). El bloqueante que marcaba esta feature como "no
+lista para implementar" queda levantado.
 
-## Casos Given/When/Then (sujetos a confirmar con la captura real de arriba)
+## Casos Given/When/Then
 
 ### Caso: timbrado exitoso
 
@@ -34,8 +32,8 @@ backend local** y confirmar cuál es el estado final del documento
 Given una pre-factura válida (al menos un concepto, cliente con RFC válido)
 When el usuario confirma "Timbrar"
 Then se llama Stamp con el payload completo del formulario
-  And la respuesta trae record — su estatus/uuid final se confirma según
-      la captura real pendiente (ver bloqueante arriba), no se asume aquí
+  And la respuesta trae record con estatus = "R" y uuid asignado (síncrono,
+      confirmado con prueba real)
   And record parchea la cache de la lista (feature 002) vía
       queryClient.setQueryData, igual que en las features 003/004
   And el toolbar del Master deshabilita "Guardar"/"Guardar pre-factura" una
@@ -62,8 +60,10 @@ Then se recibe el shape de error genérico (specs/api-contracts/README.md)
 
 ## Preguntas abiertas
 
-- **Bloqueante** (ver arriba): estado final real del documento tras `Stamp`.
-- Si el timbrado es asíncrono, ¿el frontend debe hacer polling con
-  `LoadEstatusSAT` (agent auditado en `facturas_venta.php:456`, no
-  documentado todavía en `specs/api-contracts/ventas/facturas.md`) o el `Stamp`
-  original ya es síncrono de punta a punta? Definir antes de implementar.
+- ~~Estado final real del documento tras `Stamp`~~ / ~~síncrono vs.
+  asíncrono~~ — resuelto: síncrono, ver "Estado confirmado" arriba.
+- `record.estatus_sat` vino poblado (`"Vigente"`) directamente en la
+  respuesta de `Stamp` en la prueba real — no confirmado si esto es
+  consistente en todos los casos o si conviene igual disparar
+  `LoadEstatusSAT` como refresco explícito post-timbrado; no bloqueante
+  para implementar esta feature.

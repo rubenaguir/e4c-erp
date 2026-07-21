@@ -25,9 +25,8 @@ backend; el frontend no duplica esa lógica).
 ```
 Given el usuario abre "Nueva factura" desde el listado
 When selecciona un cliente que no tiene facturas previas
-Then LoadPresetClientData no encuentra datos para precargar (comportamiento
-     exacto no confirmado — ver pregunta abierta en
-     specs/api-contracts/ventas/facturas.md)
+Then LoadPresetClientData regresa un arreglo vacío [] (confirmado con
+     prueba real, ver specs/api-contracts/ventas/facturas.md)
   And el formulario queda con los campos de encabezado vacíos/con default
 ```
 
@@ -82,10 +81,15 @@ Then se llama AddPrefactura con el payload completo
 
 ## Preguntas abiertas
 
-- Comportamiento exacto de `LoadPresetClientData` sin historial (ver
+- ~~Comportamiento exacto de `LoadPresetClientData` sin historial~~ —
+  confirmado con prueba real: regresa `[]` (ver
   `specs/api-contracts/ventas/facturas.md`).
 - ¿Los objetos de complementos vacíos (`compl_serv_par_construc`,
   `info_seguros`, `comercio_exterior`, `detallista`) deben enviarse siempre
   presentes-pero-vacíos, o se pueden omitir del payload cuando el piloto no
   los usa? Confirmar con una prueba real antes de simplificar el payload en
-  el cliente HTTP.
+  el cliente HTTP. Relacionado: la prueba real de `Stamp` de esta sesión
+  confirmó que campos escalares `null` (incluyendo los anidados en
+  `conceptos[i]`) sí deben viajar presentes como cadena vacía — ver nota de
+  implementación en `specs/api-contracts/ventas/facturas.md`, sección
+  `Stamp`.

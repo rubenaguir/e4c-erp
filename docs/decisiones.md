@@ -359,3 +359,28 @@ Cualquier campo presente en el registro viejo de `Search` que `data.record` no t
 **Consecuencias.**
 - Cuando se especifique el segundo módulo tipo documento (Fase 4+, ver `plan-implementacion.md`), agregar su entrada al nav es una línea en el arreglo de datos, no una decisión de arquitectura nueva.
 - El colapso de sidebar (`--sidebar-w-collapsed`, ya en los tokens) queda sin usar hasta que el nav tenga suficientes entradas para justificarlo — se documenta aquí para que no se pierda el token cuando haga falta.
+
+## ADR-016 — Máquina de estados de facturas_venta_33: solo P/R/C, con cancelación en dos fases
+
+**Contexto.** Explicación directa del dueño del dominio (no inferida de código ni de captura): `facturas_venta_33` originalmente solo generaba documentos timbrados (`estatus = "R"`, Registrada). La prefactura (`estatus = "P"`) se agregó después como mecanismo para compartir el PDF al cliente y validar importes/conceptos antes de comprometer la transacción — no genera registro en cuentas por cobrar. La tabla `R/P/T/A/C` de `docs/design-brief.md` es el vocabulario general del ERP (compartido entre módulos tipo documento); `T` (Timbrado) y `A` (Autorizado) pertenecen a otros módulos (pedidos, notas de crédito, etc.), no a `facturas_venta_33`.
+
+**Decisión.**
+- Máquina de estados real de `facturas_venta_33`, solo 3 estatus:
+```
+Prefactura (P) --Timbrar (Stamp)--> Registrada (R)
+Prefactura (P) --Cancelar (Cancel)--> Cancelada (C)
+Registrada (R) --Cancelar (Cancel33, 2 fases)--> Cancelada (C)
+Cancelada (C) --terminal, sin transiciones--
+```
+- `Stamp` exitoso deja el documento en `estatus = "R"` (no en un `"T"` que no existe para este módulo) — corrige la duda que dejó abierta la captura truncada de `e4c-factura/docs/spec/09-sv3-contracts.md`.
+- **Cancelación de `P` es directa**: `Cancel` actualiza `estatus = "C"` de inmediato, sin reversión de cuentas por cobrar (la prefactura nunca generó ese registro).
+- **Cancelación de `R` es un proceso de dos fases**, ambas contra el mismo endpoint `Cancel33`:
+  1. Primera llamada: solicita la cancelación ante el SAT. El documento **no** cambia a `estatus = "C"` todavía — el receptor debe aceptar la cancelación en su propio portal del SAT, proceso externo que puede tardar horas.
+  2. El usuario vuelve a presionar "Cancelar" (mismo botón) en algún momento posterior. `Cancel33` **re-consulta** el estatus real en el SAT; si ya fue aceptada, recién ahí actualiza `estatus = "C"` **y** revierte el efecto en cuentas por cobrar. Si el SAT todavía no la confirma, la función no aplica el cambio.
+  - Esto es consistente con campos ya documentados en `specs/entities/ventas/factura.md` (`cancelacion_estatus`/`cancelacion_motivo`/... "relevantes cuando... hay una solicitud de cancelación en curso") — ese campo es exactamente el que indica la fase intermedia.
+- **Inmutabilidad**: `P` es editable vía `UpdatePrefactura`. `R` es inmutable salvo su propio cambio de estatus a `C` — ningún otro campo de una factura `R` se edita desde este módulo.
+
+**Consecuencias.**
+- `specs/features/ventas/facturas_venta_33/005-cancelar.md` necesita modelar el flujo de 2 fases explícitamente: el botón "Cancelar" en un documento `R` no siempre termina en `C` de inmediato — la UI debe reflejar el estado "cancelación en curso" (vía `cancelacion_estatus`) y permitir volver a presionar el mismo botón más tarde, no deshabilitarlo tras el primer clic.
+- La verificación pendiente contra WAMP local se simplifica: ya no hace falta explorar a ciegas, solo confirmar puntualmente (a) que `Stamp` regresa `estatus = "R"`, y (b) que la primera llamada a `Cancel33` no cambia `estatus` pero sí puebla `cancelacion_estatus`, mientras la segunda sí lo hace.
+- `docs/design-brief.md` se anota (no se corrige) — la tabla `R/P/T/A/C` sigue siendo el vocabulario general, con nota de que `facturas_venta_33` usa solo `P/R/C`.

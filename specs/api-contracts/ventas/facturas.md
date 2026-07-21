@@ -64,10 +64,16 @@ ese cliente (evita recapturar esos campos cada vez). Requiere sesión.
 
 **Response 200**: mismo shape que `Load` (objeto `factura` completo, con
 datos de la última factura de ese cliente) — ver
-`specs/entities/ventas/factura.md`. Si el cliente no tiene facturas previas,
-comportamiento no confirmado con captura real (¿objeto vacío? ¿error?) —
-verificar antes de implementar el caso "cliente nuevo" en
-`specs/features/ventas/facturas_venta_33/002-crear-prefactura.md`.
+`specs/entities/ventas/factura.md`.
+
+**Confirmado con prueba real** (WAMP local, empresa `DEMO`, esta sesión):
+si el cliente **no tiene facturas previas**, la respuesta es un **arreglo
+vacío `[]`** (no un objeto `factura`, no un error) — probado con
+`cliente_id = "140"` ("Test Company SA de CV...", sin facturas, confirmado
+por `Search` con su `rfc` regresando `totalCount: 0`). El frontend debe
+verificar `Array.isArray(response)` (o `!response || Array.isArray
+(response)`) antes de tratar la respuesta como objeto `factura` para
+precargar el formulario — un cliente nuevo simplemente no precarga nada.
 
 **Fuente**: `e4c-factura/docs/spec/09-sv3-contracts.md`, líneas 323-462.
 
@@ -121,20 +127,36 @@ documento fiscal con `uuid`. Requiere sesión.
 **Request**: mismo shape que `UpdatePrefactura` (el formulario completo,
 incluyendo `serie`/`folio` de la pre-factura a timbrar).
 
-**Response 200**: `{msg, log, record}` — el `record` de la captura real
-todavía trae `"estatus": "P"` y `"uuid": null` (línea 1002 y 970 de
-`09-sv3-contracts.md`), lo cual es sospechoso para una operación de
-"timbrado" — **no confirmado si esto es el estado real post-timbrado o un
-artefacto de la captura de ejemplo** (posible timbrado asíncrono, o la
-captura se hizo contra un ambiente sin PAC configurado). Verificar con una
-prueba real contra el backend local antes de implementar
-`specs/features/ventas/facturas_venta_33/004-timbrar.md` — no asumir que `Stamp` deja al
-documento en `estatus = "P"` sin confirmarlo.
+**Response 200**: `{msg, log, record}`. Por ADR-016 (`docs/decisiones.md`,
+explicación directa del dueño del dominio), `Stamp` exitoso deja el
+documento en `estatus = "R"` (Registrada) — el `"P"`/`uuid: null` que
+todavía se ve en la captura truncada de `09-sv3-contracts.md` (línea 1002 y
+970) era un artefacto de esa captura, no el estado real post-timbrado; este
+módulo no usa `"T"` como estatus de timbrado (ver
+`specs/entities/ventas/factura.md`, invariantes).
 
-**Fuente**: `e4c-factura/docs/spec/09-sv3-contracts.md`, líneas 943-1013
-(respuesta truncada en la captura leída — confirmar el resto de los campos,
-en particular `uuid` y `estatus` finales, antes de dar esta spec por
-completa).
+**Confirmado con prueba real** (WAMP local, empresa `DEMO`, sesión de esta
+ronda): `Stamp` de la prefactura `F-1531` (estatus `"P"`, `uuid: null`)
+regresó `record.estatus = "R"`, `record.uuid =
+"b79a4912-e781-4443-b7d9-3f9e80e05ab2"`, `record.estatus_sat = "Vigente"` —
+confirma la máquina de estados de ADR-016. Nota aparte: `estatus_sat` vino
+poblado directamente en esta respuesta de `Stamp` (no `null`), a diferencia
+de lo documentado para `Load`/`Search` en
+`specs/entities/ventas/factura.md` (carga diferida vía `LoadEstatusSAT`) —
+no es contradictorio (es la respuesta de la propia acción de timbrado, no
+un `Load`/`Search` posterior), pero no confirmado si `Stamp` siempre lo
+puebla o fue específico de esta corrida; no se documenta como invariante
+sin una segunda observación.
+
+**Nota de implementación** (no de contrato): el backend requiere que todo
+campo escalar presente en `Load` — incluyendo los anidados dentro de cada
+`conceptos[i]` como `observaciones` — viaje en el request aunque sea
+`null`/vacío; omitirlo produce `Code: 4` ("Undefined array key"). El
+cliente HTTP (`sisnet-client.ts`) debe serializar `null` como cadena vacía,
+no omitir la llave, para los campos del formulario de `factura`/`concepto`.
+
+**Fuente**: `e4c-factura/docs/spec/09-sv3-contracts.md`, líneas 943-1013 +
+ADR-016 + prueba real de esta sesión.
 
 ## `opReq=...:Cancel33`
 
@@ -155,14 +177,54 @@ Requiere sesión.
 **Response 200** (shape confirmado por lectura de código,
 `facturas_venta.php:4178-4182` — no captura real):
 ```json
-{ "msg": "string", "log": "string", "record": { /* factura con estatus actualizado si el SAT confirmó la cancelación */ } }
+{ "msg": "string", "log": "string", "record": { /* factura, ver comportamiento de 2 fases abajo */ } }
 ```
 
-Por auditoría de código: la cancelación real ante el SAT es condicional —
-`record.estatus` solo cambia a `"C"` si el SAT confirmó la cancelación, no
-de forma incondicional. Confirmar con una prueba real antes de implementar
-el manejo del caso "cancelación en proceso" (SAT puede regresar "pendiente"
-en vez de confirmar de inmediato).
+**Comportamiento de 2 fases (ADR-016, `docs/decisiones.md`)** — `Cancel33`
+es el mismo endpoint para ambas llamadas del flujo de cancelación de una
+factura `R`:
+1. **Primera llamada** (solicitud): pide la cancelación ante el SAT.
+   `record.estatus` **no** cambia todavía — sigue en `"R"`. El SAT/receptor
+   debe aceptar la cancelación en su propio portal, proceso externo que
+   puede tardar horas. La respuesta puebla `cancelacion_estatus` (y
+   probablemente `cancelacion_motivo`/`cancelacion_motivo_descr`, ver
+   `specs/entities/ventas/factura.md`) para reflejar que hay una solicitud
+   en curso.
+2. **Segunda llamada** (mismo botón, presionado de nuevo más tarde):
+   `Cancel33` re-consulta el estatus real en el SAT; si ya fue aceptada,
+   ahí sí `record.estatus` pasa a `"C"` y se revierte el efecto en cuentas
+   por cobrar. Si el SAT todavía no confirma, no aplica el cambio.
+
+**Hallazgo nuevo (prueba real, WAMP local, empresa `DEMO`, esta sesión)**:
+antes de llegar al flujo de 2 fases de arriba, `Cancel33` valida un nivel
+de autorización previo e independiente del SAT. Sobre la factura recién
+timbrada `F-1531` (estatus `"R"`), la primera llamada a `Cancel33` (motivo
+`"02"`) fue rechazada con `Code: 4`, `Message: "La factura tiene
+autorizaciones pendientes: AUTORIZACION PARA CANCELAR FACTURA"` — **no**
+se llegó a ejecutar el flujo de solicitud SAT descrito arriba. Por lectura
+de código (`Factura.class.php`, función de validación antes de la
+cancelación): el backend consulta las tablas
+`ventas_facturas_autoriza_niveles` / `ventas_facturas_autoriza_conceptos` /
+`ventas_facturas_autoriza_sucursales` / `ventas_facturas_autorizaciones` —
+un módulo de autorización jerárquica configurado a nivel `empresa_id`
+(no por documento) que bloquea la cancelación hasta que alguien con el rol
+correspondiente la apruebe. **No estaba documentado en ningún spec previo**
+y no es parte de ADR-016 (que describe el flujo SAT, no este gate de
+autorización interno).
+
+**Pendiente**:
+- Capturar el shape exacto de `cancelacion_estatus` en la primera llamada
+  SAT de las 2 fases de ADR-016 requiere primero resolver/otorgar esa
+  autorización pendiente en el tenant `DEMO` (fuera de alcance de esta
+  ronda — implica un flujo de aprobación propio, no solo una llamada API) o
+  probar contra una factura/tenant sin esta regla de autorización
+  configurada.
+- Documentar el gate de autorización como su propio contrato de API
+  (`opReq` de aprobación, shape de `ventas_facturas_autorizaciones`) cuando
+  se decida si el piloto lo cubre o queda fuera de alcance — no asumido
+  aquí, requiere decisión del dueño del producto.
+- La segunda llamada (confirmación SAT) sigue sin observar, ahora también
+  bloqueada transitivamente por lo anterior.
 
 ## `opReq=...:Cancel`
 
@@ -209,9 +271,18 @@ parámetros exactos en esta ronda** — pendiente antes de implementar.
 
 ## Preguntas abiertas
 
-- Confirmar con prueba real el estado post-`Stamp` (ver nota arriba) — es
-  crítico porque define el criterio de éxito de "timbrar factura".
-- Capturar `Cancel33`/`Cancel` reales (con JSON de request/response) antes
-  de implementar `specs/features/ventas/facturas_venta_33/005-cancelar.md` — hoy la spec
-  descansa en lectura de código, no en observación directa.
+- ~~Confirmar con captura real que `Stamp` regresa `estatus = "R"`~~ —
+  confirmado con prueba real (ver sección `Stamp` arriba).
+- Confirmar con captura real el shape de `cancelacion_estatus` en la primera
+  y segunda llamada a `Cancel33` sobre una factura `R` — bloqueado por el
+  gate de autorización descubierto en esta ronda (ver sección `Cancel33`
+  arriba); requiere primero decidir cómo se resuelve esa autorización en el
+  tenant de prueba, o probar contra un tenant sin esa regla configurada.
+- Decidir si el gate de autorización de cancelación
+  (`ventas_facturas_autoriza_*`) entra en el alcance del piloto o queda
+  fuera — hoy no está mencionado en `CLAUDE.md` ni en ningún spec de
+  `facturas_venta_33`.
+- ~~Comportamiento de `LoadPresetClientData` sin historial~~ — confirmado
+  con prueba real: regresa `[]` (ver sección `LoadPresetClientData`
+  arriba).
 - `SendMail`/`PrintPdf`: capturar antes de que una feature los necesite.

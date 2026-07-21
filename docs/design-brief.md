@@ -65,6 +65,9 @@ El design system trae además un variant "pendiente" (ámbar) en `Badge.tsx`
 sin mapeo confirmado a ninguno de los estatus R/P/T/A/C de arriba — podría
 aplicar a otro módulo/pantalla futura; no se usa en el piloto por ahora.
 
+> `facturas_venta_33` usa únicamente P/R/C — T y A corresponden a otros
+> módulos tipo documento (ver ADR-016).
+
 ## Pantallas del piloto (a diseñar primero)
 
 ★ = pantalla hero, la que define el look del patrón "documento".
