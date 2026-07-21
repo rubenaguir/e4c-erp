@@ -21,8 +21,8 @@ Sesión válida (feature 001).
 
 ```
 Given la pantalla de listado se monta por primera vez
-When se ejecuta Search sin filtros (o con los filtros por defecto que
-     defina el diseño, ej. rango de fechas del mes actual)
+When se ejecuta Search sin filtro de fecha, solo con paginado por defecto
+     (start=0, limit fijo — ver "Decisiones de diseño")
 Then se puebla la cache de TanStack Query bajo una query key estable
      (ej. ['facturas', 'search', filtros]) con {totalCount, records}
 ```
@@ -60,7 +60,10 @@ Then el listado NO vuelve a llamar Search
 `specs/ui-screens/patron-documento-list-master-detail.md` — contrato exacto
 de la query key y de cómo cada mutación parchea esta cache.
 
-## Preguntas abiertas
+## Decisiones de diseño
 
-- Filtros por defecto al montar la pantalla (¿mes actual? ¿sin filtro,
-  paginado?) — no decidido, definir en diseño de la pantalla.
+- Filtros por defecto al montar la pantalla: **sin filtro de fecha**, solo
+  paginado (`start`/`limit`) — trae los registros más recientes de
+  cualquier fecha. Se prefirió sobre un rango tipo "mes actual" para no
+  ocultar facturas recientes que caigan fuera de un corte arbitrario de
+  calendario.

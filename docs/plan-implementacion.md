@@ -85,7 +85,7 @@ proyecto, tooling) — ver "Reglas de implementación" en `CLAUDE.md`.
 
 ## Fase 3 — Implementación: núcleo `facturas_venta_33`
 
-- [ ] `src/features/facturas/` siguiendo el patrón de
+- [ ] `src/features/ventas/facturas_venta_33/` siguiendo el patrón de
       `specs/ui-screens/patron-documento-list-master-detail.md`.
 - [ ] Verificación: crear una pre-factura, timbrarla, cancelarla — cada
       mutación parchea la lista sin refetch completo (criterio de

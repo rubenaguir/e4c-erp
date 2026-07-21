@@ -5,12 +5,17 @@ import { AppShell } from '@/app/AppShell'
 import { LoginScreen } from '@/features/auth/components/LoginScreen'
 import { useSessionRefresh } from '@/features/auth/hooks/useSessionRefresh'
 import { useSisnetSession } from '@/features/auth/hooks/useSisnetSession'
+import { FacturasListScreen } from '@/features/ventas/facturas_venta_33/components/FacturasListScreen'
 
 /**
- * El núcleo de facturas_venta_33 se implementa en la fase siguiente (Fase 3),
- * a partir de specs/features/ventas/facturas_venta_33/*.md — la ruta de abajo
- * es un placeholder temporal, no la pantalla real.
+ * El Master (alta/edición/timbrado/cancelación) de facturas_venta_33 se
+ * implementa en la Capa 2 de Fase 3 — la ruta de abajo es un placeholder
+ * temporal, no la pantalla real.
  */
+function FacturaMasterPlaceholder() {
+  return <div>Master — Capa 2 pendiente</div>
+}
+
 function AppRoutes() {
   useSessionRefresh()
   const session = useSisnetSession()
@@ -23,7 +28,9 @@ function AppRoutes() {
     <Routes>
       <Route element={<AppShell />}>
         <Route path="/" element={<Navigate to="/ventas/facturas" replace />} />
-        <Route path="/ventas/facturas" element={<div>Facturas — Fase 3 pendiente</div>} />
+        <Route path="/ventas/facturas" element={<FacturasListScreen />} />
+        <Route path="/ventas/facturas/nueva" element={<FacturaMasterPlaceholder />} />
+        <Route path="/ventas/facturas/:serie/:folio" element={<FacturaMasterPlaceholder />} />
       </Route>
     </Routes>
   )
