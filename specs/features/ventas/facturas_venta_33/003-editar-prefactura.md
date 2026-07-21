@@ -38,6 +38,22 @@ Then se llama UpdatePrefactura con serie/folio + el payload completo
       queryClient.setQueryData — SIN volver a llamar Search
 ```
 
+### Caso: navegar al documento siguiente/anterior (ADR-013)
+
+```
+Given el Master está abierto sobre un documento que pertenece al resultado
+     de Search ya cargado en memoria (['facturas', 'search', filtrosActivos])
+When el usuario usa el control de navegación siguiente/anterior
+Then el frontend calcula la posición del documento actual dentro de ese
+     arreglo en cache (sin llamar Search de nuevo) y llama Load sobre el
+     serie/folio del documento adyacente
+  And si el documento actual es el primero o el último del lote cargado,
+      el control correspondiente se deshabilita (el piloto no auto-pagina)
+  And si el usuario cambió los filtros de búsqueda desde que abrió el
+      Master, la navegación sigue referida a la búsqueda con la que se
+      abrió, no a una nueva
+```
+
 ### Caso: factura ya timbrada (guardia de negocio, no solo de UI)
 
 ```

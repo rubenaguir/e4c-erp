@@ -131,6 +131,12 @@ ningún complemento entra en alcance (ver `CLAUDE.md`) — este documento deja
 la estructura lista para cuando se agreguen, pero no prescribe su
 implementación todavía.
 
+**Excepción — "Generar Salida" y complemento "Factura Global" (ADR-014):**
+a diferencia del resto de complementos fuera de alcance (que se omiten por
+completo), estos dos se muestran visibles pero deshabilitados, con
+placeholder tipo "Próximamente" — no se ocultan. Ver ADR-014 en
+`docs/decisiones.md` para el razonamiento completo.
+
 ## Aplicación a otros módulos "documento" (fuera del piloto)
 
 Cuando se especifique el segundo módulo tipo documento (ver

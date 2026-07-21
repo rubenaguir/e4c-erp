@@ -321,3 +321,26 @@ Cualquier campo presente en el registro viejo de `Search` que `data.record` no t
 - Los campos derivados (`saldo`, etc.) pueden quedar **desactualizados** tras una mutación que indirectamente los afecte (ej. timbrar cambia el saldo por cobrar en otra tabla) hasta el próximo refresh manual de la lista — es la misma aceptación de "optimismo acotado" que ya justificó ADR-003, extendida explícitamente a campos de join.
 - Asume que los campos compartidos entre `Search` y `Load` tienen el mismo nombre/tipo en ambos — si un módulo futuro rompe esa asunción (mismo nombre, significado distinto), no lo resuelve este ADR; se decide caso por caso al implementar ese módulo.
 - `specs/ui-screens/patron-documento-list-master-detail.md` se actualiza para reflejar `{...oldRecord, ...data.record}` en vez del reemplazo total documentado hoy.
+
+## ADR-013 — Navegación prev/next en el Master de factura
+
+**Contexto.** La UI Ext JS original de `facturas_venta_33` expone controles de navegación (flechas) que permiten moverse al documento siguiente/anterior sin volver al listado. Confirmado por captura real de la pantalla de detalle. No estaba documentado en `specs/ui-screens/patron-documento-list-master-detail.md` ni en ninguna de las 5 features de Fase 1.
+
+**Decisión.** Se incluye en el piloto, como parte de `specs/features/ventas/facturas_venta_33/003-editar-prefactura.md`:
+- La navegación opera **dentro del resultado de `Search` ya cargado en memoria** (mismo query key `['facturas', 'search', filtrosActivos]`), respetando el orden/filtros activos — nunca dispara un nuevo `Search`.
+- Al navegar a un documento distinto, el Master siempre hace `Load` de ese documento (consistente con la regla ya documentada: nunca se reutiliza el registro angosto de la lista como fuente del Master).
+- **Límite de página**: si el usuario llega al último/primer registro de la página actualmente cargada, los controles se deshabilitan — el piloto **no** auto-pagina para traer el siguiente lote. Es una simplificación deliberada del MVP, no una decisión permanente; se documenta así para no dejarlo implícito.
+
+**Consecuencias.**
+- El Master necesita conocer su posición dentro del arreglo de resultados de la query de lista (vía `queryClient.getQueryData` + índice), no solo el `serie`/`folio` del documento actual.
+- Si el usuario cambia los filtros de búsqueda mientras está en el Master, la referencia de "siguiente/anterior" corresponde a la búsqueda con la que se abrió, no a una nueva — comportamiento heredado del mismo principio de "el listado no se refresca solo".
+
+## ADR-014 — Tratamiento de "Generar Salida" y complemento "Factura Global": deshabilitado con placeholder
+
+**Contexto.** Ambos aparecen en la UI real del Master pero no tienen entidad, endpoint ni spec de datos/lógica documentada en este repo — a diferencia de los complementos ya clasificados como fuera de alcance en `CLAUDE.md` (comercio exterior, detallista, etc.), que simplemente se omiten. Por §3.2 (elemento visual sin respaldo de dato/lógica), no se deja que el implementador decida en silencio.
+
+**Decisión.** A diferencia del resto de complementos fuera de alcance (que se omiten por completo), estos dos se muestran **visibles pero deshabilitados**, con un tooltip/placeholder tipo "Próximamente" — no se ocultan, no son funcionales. Tratamiento distinto porque, a diferencia de los otros, no estaban clasificados como fuera de alcance hasta este hallazgo — se opta por señalizar su existencia futura en vez de esconderlos.
+
+**Consecuencias.**
+- No se escribe `api-contracts` para estos dos todavía — cuando se especifiquen en una fase futura, solo se quita el estado deshabilitado, no se reestructura la UI.
+- Establece un patrón reusable ("visible deshabilitado con placeholder") para el próximo hallazgo similar, distinto del patrón "se omite" ya establecido para los complementos de nicho.
