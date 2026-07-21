@@ -21,6 +21,11 @@
   --border: hsl(200 35% 88%);
   --input: hsl(200 35% 88%);
   --ring: hsl(200 88% 48%);
+
+  /* Layout del shell de navegación (ADR-015) — mismo valor en light/dark */
+  --topbar-h: 56px;
+  --sidebar-w: 240px;
+  --sidebar-w-collapsed: 64px;
 }
 
 .dark {

@@ -344,3 +344,18 @@ Cualquier campo presente en el registro viejo de `Search` que `data.record` no t
 **Consecuencias.**
 - No se escribe `api-contracts` para estos dos todavía — cuando se especifiquen en una fase futura, solo se quita el estado deshabilitado, no se reestructura la UI.
 - Establece un patrón reusable ("visible deshabilitado con placeholder") para el próximo hallazgo similar, distinto del patrón "se omite" ya establecido para los complementos de nicho.
+
+## ADR-015 — Shell de navegación: sidebar + topbar, nav data-driven, alcance mínimo
+
+**Contexto.** `App.tsx` sigue siendo el placeholder de Fase 0 (sin router montado, aunque React Router ya está instalado desde esa fase). El menú legacy de Sisnet V3 tiene ~13 módulos con decenas de pantallas; el piloto de `e4c-erp` solo cubre una (`facturas_venta_33`). El design system (`colors_and_type.css` del handoff) ya define `--sidebar-w: 240px` y `--topbar-h: 56px`, indicando un layout de sidebar fijo + topbar, no un menú tipo acordeón como el legacy.
+
+**Decisión.**
+- Layout: `Topbar` (ícono de marca + "e4c-erp" + botón "Cerrar sesión", altura `--topbar-h`) + `Sidebar` fijo (ancho `--sidebar-w`, colapsable a `--sidebar-w-collapsed` queda fuera de alcance del piloto — no hay suficientes items para justificar colapso) + área de contenido.
+- Navegación: React Router con rutas anidadas. Ruta inicial: `/ventas/facturas` → pantalla de listado de `facturas_venta_33` (Fase 3).
+- **El nav es data-driven desde ahora** (un arreglo de `{label, path, moduleKey}` en vez de JSX hardcodeado), aunque solo tenga una entrada — no es sobre-ingeniería: es la única forma de agregar el segundo módulo sin rediseñar el shell, y el costo de escribirlo como dato en vez de JSX es mínimo. Consistente con el criterio de §8 (justificar infraestructura por consumidor real, no por simetría) — aquí el "consumidor real" es que la Fase 4+ va a necesitar agregar entradas sin tocar el layout.
+- Todo lo que no está construido **no aparece en el nav** — nada deshabilitado, nada de placeholder de módulos futuros (a diferencia de ADR-014, que trata elementos de UI de una pantalla ya en construcción, no módulos enteros sin empezar).
+- El shell se monta solo si hay sesión activa (`useSisnetSession`); sin sesión, se muestra `LoginScreen` sin sidebar/topbar — mismo criterio ya usado en `App.tsx`.
+
+**Consecuencias.**
+- Cuando se especifique el segundo módulo tipo documento (Fase 4+, ver `plan-implementacion.md`), agregar su entrada al nav es una línea en el arreglo de datos, no una decisión de arquitectura nueva.
+- El colapso de sidebar (`--sidebar-w-collapsed`, ya en los tokens) queda sin usar hasta que el nav tenga suficientes entradas para justificarlo — se documenta aquí para que no se pierda el token cuando haga falta.

@@ -1,18 +1,17 @@
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+
 import { AppProviders } from '@/app/providers'
-import { Button } from '@/shared/components/ui/button'
+import { AppShell } from '@/app/AppShell'
 import { LoginScreen } from '@/features/auth/components/LoginScreen'
 import { useSessionRefresh } from '@/features/auth/hooks/useSessionRefresh'
 import { useSisnetSession } from '@/features/auth/hooks/useSisnetSession'
-import { setSisnetSession } from '@/shared/lib/sisnet-client'
 
 /**
  * El núcleo de facturas_venta_33 se implementa en la fase siguiente (Fase 3),
- * a partir de specs/features/ventas/facturas_venta_33/*.md. El enrutamiento
- * protegido (react-router-dom) llega junto con esa primera pantalla de
- * negocio — hasta entonces, esta pantalla placeholder es todo lo que hay
- * detrás de una sesión válida.
+ * a partir de specs/features/ventas/facturas_venta_33/*.md — la ruta de abajo
+ * es un placeholder temporal, no la pantalla real.
  */
-function AppShell() {
+function AppRoutes() {
   useSessionRefresh()
   const session = useSisnetSession()
 
@@ -21,23 +20,21 @@ function AppShell() {
   }
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-2 p-8 text-center">
-      <h1 className="text-2xl font-semibold text-foreground">e4c-erp</h1>
-      <p className="text-muted-foreground">
-        Sesión activa. Las pantallas de negocio se implementan a partir de
-        las specs en <code>specs/features/</code>.
-      </p>
-      <Button variant="outline" onClick={() => setSisnetSession(null)}>
-        Cerrar sesión
-      </Button>
-    </main>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route path="/" element={<Navigate to="/ventas/facturas" replace />} />
+        <Route path="/ventas/facturas" element={<div>Facturas — Fase 3 pendiente</div>} />
+      </Route>
+    </Routes>
   )
 }
 
 export function App() {
   return (
     <AppProviders>
-      <AppShell />
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
     </AppProviders>
   )
 }
